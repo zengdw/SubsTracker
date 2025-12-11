@@ -3220,7 +3220,10 @@ function doAction(actions, name) {
   if (!actions) return
   actions.forEach((action) => {
     fetch(action.url, action.options)
-      .then(response => response.json())
+      .then(response => {
+        console.log(response);
+        return response.json()
+      })
       .then(response => {
         let errors = response.errors
         if (errors) {
