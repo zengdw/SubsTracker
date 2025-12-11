@@ -1,0 +1,16 @@
+{
+    "$schema": "./node_modules/wrangler/config-schema.json",
+    "name": "substracker",
+    "main": "index.js",
+    "compatibility_date": "2024-01-01",
+    "kv_namespaces": [
+        {
+            "binding": "SUBSCRIPTIONS_KV",
+            "id": "ccf5e2c4e8774df8a4cd5314dde6ca32"
+        }
+    ],
+    "triggers": {
+        "crons": ["0 1 * * *"]
+    }
+
+}
