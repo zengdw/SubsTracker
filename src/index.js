@@ -3247,12 +3247,11 @@ async function doAction(actions, name) {
       let errors = responseData.errors;
       if (errors) {
         const errorDetail = errors[0]?.detail || '未知业务错误';
-        const errorMessage = `${name}操作${action.url}执行失败: ${errorDetail}`;
-        console.log(errorMessage);
+        const errorMessage = `${name}操作${action.url} 执行失败: ${errorDetail}`;
         // 抛出错误，会被外层 try...catch 捕获（即 executeActions 中的 catch）
         throw new Error(errorMessage);
       } else {
-        console.log(`${name}操作${action.url}执行成功`);
+        console.log(`${name}操作${action.url} 执行成功`);
 
         // 4. 处理回调操作
         if (action.callback) {
