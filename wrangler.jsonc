@@ -11,6 +11,15 @@
     ],
     "triggers": {
         "crons": ["0 1 * * *"]
+    },
+    "routes": [
+        {
+            "pattern": "sub.zengdw.dpdns.org",
+            "custom_domain": true
+        }
+    ],
+    "observability": {
+        "enabled": true
     }
 
 }
