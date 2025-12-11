@@ -3213,6 +3213,8 @@ function executeActions(subscriptions) {
 }
 
 function doAction(actions, name) {
+  console.log(actions);
+  
   actions.forEach((action) => {
     fetch(action.url, action.options)
       .then(response => response.json())
