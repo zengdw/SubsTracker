@@ -3207,8 +3207,7 @@ async function sendWechatBotNotification(title, content, config) {
 function executeActions(subscriptions) {
   subscriptions.forEach((sub) => {
     let name = sub.name
-    let actions = sub.actions
-    console.log(sub);
+    let actions = JSON.parse(sub.actions)
     
     doAction(actions, name)
   });
