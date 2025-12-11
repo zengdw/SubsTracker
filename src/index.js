@@ -3044,7 +3044,7 @@ async function testSingleSubscriptionNotification(id, env) {
     await executeActions([{
       name: subscription.name,
       actions: subscription.actions
-    }])
+    }], config)
     // 使用多渠道发送
     //await sendNotificationToAllChannels(title, commonContent, config, '[手动测试]');
 
@@ -3635,7 +3635,7 @@ async function checkExpiringSubscriptions(env) {
         })
       }
 
-      await executeActions(subs)
+      await executeActions(subs, config)
 
       const title = '订阅到期提醒';
       await sendNotificationToAllChannels(title, commonContent, config, '[定时任务]');
