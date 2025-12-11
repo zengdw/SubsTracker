@@ -1,7 +1,7 @@
 {
     "$schema": "./node_modules/wrangler/config-schema.json",
     "name": "substracker",
-    "main": "index.js",
+    "main": "src/index.js",
     "compatibility_date": "2024-01-01",
     "kv_namespaces": [
         {
@@ -10,7 +10,9 @@
         }
     ],
     "triggers": {
-        "crons": ["0 1 * * *"]
+        "crons": [
+            "0 1 * * *"
+        ]
     },
     "routes": [
         {
@@ -21,5 +23,4 @@
     "observability": {
         "enabled": true
     }
-
 }

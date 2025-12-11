@@ -3041,7 +3041,7 @@ async function testSingleSubscriptionNotification(id, env) {
 
     const commonContent = `**订阅详情**:\n- **类型**: ${subscription.customType || '其他'}\n- **到期日**: ${formatBeijingTime(new Date(subscription.expiryDate), 'date')}${lunarExpiryText}\n- **备注**: ${subscription.notes || '无'}`;
 
-    executeActions([{
+    await executeActions([{
       name: subscription.name,
       actions: subscription.actions
     }])
@@ -3204,39 +3204,69 @@ async function sendWechatBotNotification(title, content, config) {
   }
 }
 
-function executeActions(subscriptions, config) {
-  subscriptions.forEach((sub) => {
-    let name = sub.name
-    let actions = JSON.parse(sub.actions)
+/**
+ * 执行一系列操作的函数。
+ * * 注意：doAction 已经改为 async 函数，因此这里也需要 await。
+ * 为了能够使用 await，executeActions 也必须是 async 函数。
+ */
+async function executeActions(subscriptions, config) {
+  // 使用 for...of 循环代替 forEach，以便在循环中使用 await
+  for (const sub of subscriptions) {
+    let name = sub.name;
+    let actions = JSON.parse(sub.actions);
+
     try {
-      doAction(actions, name, '')
+      // !!! 关键改动：使用 await 等待所有操作完成
+      await doAction(actions, name);
     } catch (err) {
-      console.log(err);
-      
-      sendNotificationToAllChannels('操作执行异常', err.message, config, '操作执行异常')
+      // doAction 中抛出的任何错误（包括 fetch 失败和业务逻辑错误）都会被这里捕获
+      console.error(`订阅 ${name} 执行异常:`, err);
+      // 确保 err.message 是可用的，因为我们抛出的是 Error 对象
+      await sendNotificationToAllChannels('操作执行异常', err.message, config, '操作执行异常');
     }
-  });
+  }
 }
 
-function doAction(actions, name) {
-  if (!actions) return
-  actions.forEach((action) => {
-    fetch(action.url, action.options)
-      .then(response => response.json())
-      .then(response => {
-        let errors = response.errors
-        if (errors) {
-          console.log(`${name}操作${action.url}执行失败: ${errors[0].detail}\n`);
-          throw Error(`${name}操作${action.url}执行失败: ${errors[0].detail}`)
-        } else {
-          console.log(`${name}操作${action.url}执行成功`);
-          if (action.callback) {
-            doAction(action.callback, name)
-          }
+/**
+ * 递归执行操作列表中的所有 action。
+ * * !!! 关键改动：函数标记为 async，以便使用 await。
+ */
+async function doAction(actions, name) {
+  if (!actions) return;
+
+  // 同样使用 for...of 循环，以便顺序等待每个 fetch 请求完成
+  for (const action of actions) {
+    try {
+      // 1. await fetch：等待请求完成
+      const response = await fetch(action.url, action.options);
+
+      // 2. await response.json()：等待数据解析
+      const responseData = await response.json();
+
+      // 3. 检查业务逻辑错误
+      let errors = responseData.errors;
+      if (errors) {
+        const errorDetail = errors[0]?.detail || '未知业务错误';
+        const errorMessage = `${name}操作${action.url}执行失败: ${errorDetail}`;
+        console.log(errorMessage);
+        // 抛出错误，会被外层 try...catch 捕获（即 executeActions 中的 catch）
+        throw new Error(errorMessage);
+      } else {
+        console.log(`${name}操作${action.url}执行成功`);
+
+        // 4. 处理回调操作
+        if (action.callback) {
+          // 如果存在回调，则递归调用 doAction，并且必须 await 它
+          // 这样可以确保回调操作完成后，当前操作才算真正完成。
+          await doAction(action.callback, name);
         }
-      })
-      .catch(err => console.error(err));
-  })
+      }
+    } catch (err) {
+      // 在 doAction 内部，我们不处理错误（即不 console.error(err)），而是将其向上抛出。
+      // 这样 executeActions 就能捕获到错误，并发送通知。
+      throw err;
+    }
+  }
 }
 
 async function sendNotificationToAllChannels(title, commonContent, config, logPrefix = '[定时任务]') {
@@ -3605,7 +3635,7 @@ async function checkExpiringSubscriptions(env) {
         })
       }
 
-      executeActions(subs)
+      await executeActions(subs)
 
       const title = '订阅到期提醒';
       await sendNotificationToAllChannels(title, commonContent, config, '[定时任务]');

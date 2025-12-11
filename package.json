@@ -2,13 +2,16 @@
   "name": "subscription-manager",
   "version": "2.0.0",
   "description": "订阅管理系统 - 基于CloudFlare Workers",
-  "main": "index.js",
+  "main": "src/index.js",
   "keywords": [
     "cloudflare-workers",
     "subscription-management",
     "notification",
     "lunar-calendar"
   ],
+  "scripts": {
+    "dev": "wrangler dev"
+  },
   "license": "MIT",
   "devDependencies": {
     "wrangler": "^4.53.0"
