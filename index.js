@@ -3046,7 +3046,7 @@ async function testSingleSubscriptionNotification(id, env) {
       actions: subscription.actions
     }])
     // 使用多渠道发送
-    await sendNotificationToAllChannels(title, commonContent, config, '[手动测试]');
+    //await sendNotificationToAllChannels(title, commonContent, config, '[手动测试]');
 
     return { success: true, message: '测试通知已发送到所有启用的渠道' };
 
@@ -3211,6 +3211,8 @@ function executeActions(subscriptions, config) {
     try {
       doAction(actions, name, '')
     } catch (err) {
+      console.log(err);
+      
       sendNotificationToAllChannels('操作执行异常', err.message, config, '操作执行异常')
     }
   });
@@ -3220,15 +3222,12 @@ function doAction(actions, name) {
   if (!actions) return
   actions.forEach((action) => {
     fetch(action.url, action.options)
-      .then(response => {
-        console.log(response);
-        return response.json()
-      })
+      .then(response => response.json())
       .then(response => {
         let errors = response.errors
         if (errors) {
-          console.log(`${name}操作${action.url}执行失败: ${errors[0].detail}`);
-          throw Error(`${name}操作${action.url}执行失败: ${errors[0].detail}\n`)
+          console.log(`${name}操作${action.url}执行失败: ${errors[0].detail}\n`);
+          throw Error(`${name}操作${action.url}执行失败: ${errors[0].detail}`)
         } else {
           console.log(`${name}操作${action.url}执行成功`);
           if (action.callback) {
