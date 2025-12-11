@@ -3222,9 +3222,10 @@ function doAction(actions, name) {
     fetch(action.url, action.options)
       .then(response => response.json())
       .then(response => {
-        if (!response.success) {
-          console.log(`${name}操作${action.url}执行失败: ${response.message}`);
-          throw Error(`${name}操作${action.url}执行失败: ${response.message}\n`)
+        let errors = response.errors
+        if (errors) {
+          console.log(`${name}操作${action.url}执行失败: ${errors[0].detail}`);
+          throw Error(`${name}操作${action.url}执行失败: ${errors[0].detail}\n`)
         } else {
           console.log(`${name}操作${action.url}执行成功`);
           if (action.callback) {
