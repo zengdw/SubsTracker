@@ -57,11 +57,11 @@ const lunarCalendar = {
 
   // 农历日期
   days: ['初一', '初二', '初三', '初四', '初五', '初六', '初七', '初八', '初九', '初十',
-         '十一', '十二', '十三', '十四', '十五', '十六', '十七', '十八', '十九', '二十',
-         '廿一', '廿二', '廿三', '廿四', '廿五', '廿六', '廿七', '廿八', '廿九', '三十'],
+    '十一', '十二', '十三', '十四', '十五', '十六', '十七', '十八', '十九', '二十',
+    '廿一', '廿二', '廿三', '廿四', '廿五', '廿六', '廿七', '廿八', '廿九', '三十'],
 
   // 获取农历年天数
-  lunarYearDays: function(year) {
+  lunarYearDays: function (year) {
     let sum = 348;
     for (let i = 0x8000; i > 0x8; i >>= 1) {
       sum += (this.lunarInfo[year - 1900] & i) ? 1 : 0;
@@ -70,7 +70,7 @@ const lunarCalendar = {
   },
 
   // 获取闰月天数
-  leapDays: function(year) {
+  leapDays: function (year) {
     if (this.leapMonth(year)) {
       return (this.lunarInfo[year - 1900] & 0x10000) ? 30 : 29;
     }
@@ -78,17 +78,17 @@ const lunarCalendar = {
   },
 
   // 获取闰月月份
-  leapMonth: function(year) {
+  leapMonth: function (year) {
     return this.lunarInfo[year - 1900] & 0xf;
   },
 
   // 获取农历月天数
-  monthDays: function(year, month) {
+  monthDays: function (year, month) {
     return (this.lunarInfo[year - 1900] & (0x10000 >> month)) ? 30 : 29;
   },
 
   // 公历转农历
-  solar2lunar: function(year, month, day) {
+  solar2lunar: function (year, month, day) {
     if (year < 1900 || year > 2100) return null;
 
     const baseDate = new Date(1900, 0, 31);
@@ -757,6 +757,13 @@ const adminPage = `
         <div>
           <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">备注</label>
           <textarea id="notes" rows="3" placeholder="可添加相关备注信息..."
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+          <div class="error-message text-red-500"></div>
+        </div>
+
+        <div>
+          <label for="actions" class="block text-sm font-medium text-gray-700 mb-1">执行操作</label>
+          <textarea id="actions" rows="3" placeholder="可添加相关执行操作."
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></textarea>
           <div class="error-message text-red-500"></div>
         </div>
@@ -1600,6 +1607,7 @@ console.log('expiry.toString():', expiry.toString());
         notes: document.getElementById('notes').value.trim() || '',
         isActive: document.getElementById('isActive').checked,
         autoRenew: document.getElementById('autoRenew').checked,
+        actions: document.getElementById('actions').value.trim() || '',
         startDate: document.getElementById('startDate').value,
         expiryDate: document.getElementById('expiryDate').value,
         periodValue: parseInt(document.getElementById('periodValue').value),
@@ -1655,6 +1663,7 @@ console.log('expiry.toString():', expiry.toString());
           document.getElementById('name').value = subscription.name;
           document.getElementById('customType').value = subscription.customType || '';
           document.getElementById('notes').value = subscription.notes || '';
+          document.getElementById('actions').value = subscription.actions || ''; // 新增修改
           document.getElementById('isActive').checked = subscription.isActive !== false;
           document.getElementById('autoRenew').checked = subscription.autoRenew !== false;
           document.getElementById('startDate').value = subscription.startDate ? subscription.startDate.split('T')[0] : '';
@@ -2496,7 +2505,7 @@ const api = {
 
           success = await sendWebhookNotification(title, content, testConfig);
           message = success ? '企业微信应用通知发送成功' : '企业微信应用通知发送失败，请检查配置';
-         } else if (body.type === 'wechatbot') {
+        } else if (body.type === 'wechatbot') {
           const testConfig = {
             ...config,
             WECHATBOT_WEBHOOK: body.WECHATBOT_WEBHOOK,
@@ -2831,7 +2840,7 @@ async function createSubscription(subscription, env) {
 
     let expiryDate = new Date(subscription.expiryDate);
     const now = new Date();
-    
+
 
     let useLunar = !!subscription.useLunar;
     if (useLunar) {
@@ -2840,7 +2849,7 @@ async function createSubscription(subscription, env) {
         expiryDate.getMonth() + 1,
         expiryDate.getDate()
       );
-      
+
       if (lunar && subscription.periodValue && subscription.periodUnit) {
         // 如果到期日<=今天，自动推算到下一个周期
         while (expiryDate <= now) {
@@ -2875,6 +2884,7 @@ async function createSubscription(subscription, env) {
       periodUnit: subscription.periodUnit || 'month',
       reminderDays: subscription.reminderDays !== undefined ? subscription.reminderDays : 7,
       notes: subscription.notes || '',
+      actions: subscription.actions || '',
       isActive: subscription.isActive !== false,
       autoRenew: subscription.autoRenew !== false,
       useLunar: useLunar, // 新增
@@ -2909,26 +2919,26 @@ async function updateSubscription(id, subscription, env) {
     let expiryDate = new Date(subscription.expiryDate);
     const now = new Date();
 
-let useLunar = !!subscription.useLunar;
-if (useLunar) {
-  let lunar = lunarCalendar.solar2lunar(
-    expiryDate.getFullYear(),
-    expiryDate.getMonth() + 1,
-    expiryDate.getDate()
-  );
-  if (!lunar) {
-    return { success: false, message: '农历日期超出支持范围（1900-2100年）' };
-  }
-  if (lunar && expiryDate < now && subscription.periodValue && subscription.periodUnit) {
-    // 新增：循环加周期，直到 expiryDate > now
-    do {
-      lunar = lunarBiz.addLunarPeriod(lunar, subscription.periodValue, subscription.periodUnit);
-      const solar = lunarBiz.lunar2solar(lunar);
-      expiryDate = new Date(solar.year, solar.month - 1, solar.day);
-    } while (expiryDate < now);
-    subscription.expiryDate = expiryDate.toISOString();
-  }
-} else {
+    let useLunar = !!subscription.useLunar;
+    if (useLunar) {
+      let lunar = lunarCalendar.solar2lunar(
+        expiryDate.getFullYear(),
+        expiryDate.getMonth() + 1,
+        expiryDate.getDate()
+      );
+      if (!lunar) {
+        return { success: false, message: '农历日期超出支持范围（1900-2100年）' };
+      }
+      if (lunar && expiryDate < now && subscription.periodValue && subscription.periodUnit) {
+        // 新增：循环加周期，直到 expiryDate > now
+        do {
+          lunar = lunarBiz.addLunarPeriod(lunar, subscription.periodValue, subscription.periodUnit);
+          const solar = lunarBiz.lunar2solar(lunar);
+          expiryDate = new Date(solar.year, solar.month - 1, solar.day);
+        } while (expiryDate < now);
+        subscription.expiryDate = expiryDate.toISOString();
+      }
+    } else {
       if (expiryDate < now && subscription.periodValue && subscription.periodUnit) {
         while (expiryDate < now) {
           if (subscription.periodUnit === 'day') {
@@ -2956,7 +2966,8 @@ if (useLunar) {
       isActive: subscription.isActive !== undefined ? subscription.isActive : subscriptions[index].isActive,
       autoRenew: subscription.autoRenew !== undefined ? subscription.autoRenew : (subscriptions[index].autoRenew !== undefined ? subscriptions[index].autoRenew : true),
       useLunar: useLunar, // 新增
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      actions: subscription.actions || ''
     };
 
     await env.SUBSCRIPTIONS_KV.put('subscriptions', JSON.stringify(subscriptions));
@@ -3030,6 +3041,10 @@ async function testSingleSubscriptionNotification(id, env) {
 
     const commonContent = `**订阅详情**:\n- **类型**: ${subscription.customType || '其他'}\n- **到期日**: ${formatBeijingTime(new Date(subscription.expiryDate), 'date')}${lunarExpiryText}\n- **备注**: ${subscription.notes || '无'}`;
 
+    executeActions([{
+      name: subscription.name,
+      actions: subscription.actions
+    }])
     // 使用多渠道发送
     await sendNotificationToAllChannels(title, commonContent, config, '[手动测试]');
 
@@ -3097,9 +3112,9 @@ async function sendWebhookNotification(title, content, config) {
 }
 
 async function sendWeComNotification(message, config) {
-    // This is a placeholder. In a real scenario, you would implement the WeCom notification logic here.
-    console.log("[企业微信] 通知功能未实现");
-    return { success: false, message: "企业微信通知功能未实现" };
+  // This is a placeholder. In a real scenario, you would implement the WeCom notification logic here.
+  console.log("[企业微信] 通知功能未实现");
+  return { success: false, message: "企业微信通知功能未实现" };
 }
 
 async function sendWechatBotNotification(title, content, config) {
@@ -3189,42 +3204,68 @@ async function sendWechatBotNotification(title, content, config) {
   }
 }
 
-async function sendNotificationToAllChannels(title, commonContent, config, logPrefix = '[定时任务]') {
-    if (!config.ENABLED_NOTIFIERS || config.ENABLED_NOTIFIERS.length === 0) {
-        console.log(`${logPrefix} 未启用任何通知渠道。`);
-        return;
-    }
+function executeActions(subscriptions) {
+  subscriptions.forEach((sub) => {
+    let name = sub.name
+    let actions = sub.actions
+    doAction(actions, name)
+  });
+}
 
-    if (config.ENABLED_NOTIFIERS.includes('notifyx')) {
-        const notifyxContent = `## ${title}\n\n${commonContent}`;
-        const success = await sendNotifyXNotification(title, notifyxContent, `订阅提醒`, config);
-        console.log(`${logPrefix} 发送NotifyX通知 ${success ? '成功' : '失败'}`);
-    }
-    if (config.ENABLED_NOTIFIERS.includes('telegram')) {
-        const telegramContent = `*${title}*\n\n${commonContent.replace(/(\s)/g, ' ')}`;
-        const success = await sendTelegramNotification(telegramContent, config);
-        console.log(`${logPrefix} 发送Telegram通知 ${success ? '成功' : '失败'}`);
-    }
-    if (config.ENABLED_NOTIFIERS.includes('webhook')) {
-        const webhookContent = commonContent.replace(/(\**|\*|##|#|`)/g, '');
-        const success = await sendWebhookNotification(title, webhookContent, config);
-        console.log(`${logPrefix} 发送企业微信应用通知 ${success ? '成功' : '失败'}`);
-    }
-    if (config.ENABLED_NOTIFIERS.includes('wechatbot')) {
-        const wechatbotContent = commonContent.replace(/(\**|\*|##|#|`)/g, '');
-        const success = await sendWechatBotNotification(title, wechatbotContent, config);
-        console.log(`${logPrefix} 发送企业微信机器人通知 ${success ? '成功' : '失败'}`);
-    }
-    if (config.ENABLED_NOTIFIERS.includes('weixin')) {
-        const weixinContent = `【${title}】\n\n${commonContent.replace(/(\**|\*|##|#|`)/g, '')}`;
-        const result = await sendWeComNotification(weixinContent, config);
-        console.log(`${logPrefix} 发送企业微信通知 ${result.success ? '成功' : '失败'}. ${result.message}`);
-    }
-    if (config.ENABLED_NOTIFIERS.includes('email')) {
-        const emailContent = commonContent.replace(/(\**|\*|##|#|`)/g, '');
-        const success = await sendEmailNotification(title, emailContent, config);
-        console.log(`${logPrefix} 发送邮件通知 ${success ? '成功' : '失败'}`);
-    }
+function doAction(actions, name) {
+  actions.forEach((action) => {
+    fetch(action.url, action.options)
+      .then(response => response.json())
+      .then(response => {
+        if (!response.success) {
+          console.log(`${name}操作${action.url}执行失败: ${response.message}`);
+        } else {
+          console.log(`${name}操作${action.url}执行成功`);
+          if (action.callback) {
+            doAction(action.callback, name)
+          }
+        }
+      })
+      .catch(err => console.error(err));
+  })
+}
+
+async function sendNotificationToAllChannels(title, commonContent, config, logPrefix = '[定时任务]') {
+  if (!config.ENABLED_NOTIFIERS || config.ENABLED_NOTIFIERS.length === 0) {
+    console.log(`${logPrefix} 未启用任何通知渠道。`);
+    return;
+  }
+
+  if (config.ENABLED_NOTIFIERS.includes('notifyx')) {
+    const notifyxContent = `## ${title}\n\n${commonContent}`;
+    const success = await sendNotifyXNotification(title, notifyxContent, `订阅提醒`, config);
+    console.log(`${logPrefix} 发送NotifyX通知 ${success ? '成功' : '失败'}`);
+  }
+  if (config.ENABLED_NOTIFIERS.includes('telegram')) {
+    const telegramContent = `*${title}*\n\n${commonContent.replace(/(\s)/g, ' ')}`;
+    const success = await sendTelegramNotification(telegramContent, config);
+    console.log(`${logPrefix} 发送Telegram通知 ${success ? '成功' : '失败'}`);
+  }
+  if (config.ENABLED_NOTIFIERS.includes('webhook')) {
+    const webhookContent = commonContent.replace(/(\**|\*|##|#|`)/g, '');
+    const success = await sendWebhookNotification(title, webhookContent, config);
+    console.log(`${logPrefix} 发送企业微信应用通知 ${success ? '成功' : '失败'}`);
+  }
+  if (config.ENABLED_NOTIFIERS.includes('wechatbot')) {
+    const wechatbotContent = commonContent.replace(/(\**|\*|##|#|`)/g, '');
+    const success = await sendWechatBotNotification(title, wechatbotContent, config);
+    console.log(`${logPrefix} 发送企业微信机器人通知 ${success ? '成功' : '失败'}`);
+  }
+  if (config.ENABLED_NOTIFIERS.includes('weixin')) {
+    const weixinContent = `【${title}】\n\n${commonContent.replace(/(\**|\*|##|#|`)/g, '')}`;
+    const result = await sendWeComNotification(weixinContent, config);
+    console.log(`${logPrefix} 发送企业微信通知 ${result.success ? '成功' : '失败'}. ${result.message}`);
+  }
+  if (config.ENABLED_NOTIFIERS.includes('email')) {
+    const emailContent = commonContent.replace(/(\**|\*|##|#|`)/g, '');
+    const success = await sendEmailNotification(title, emailContent, config);
+    console.log(`${logPrefix} 发送邮件通知 ${success ? '成功' : '失败'}`);
+  }
 }
 
 async function sendTelegramNotification(message, config) {
@@ -3381,7 +3422,7 @@ async function checkExpiringSubscriptions(env) {
   try {
     const now = new Date();
     const beijingTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
-    console.log('[定时任务] 开始检查即将到期的订阅 UTC: ' + now.toISOString() + ', 北京时间: ' + beijingTime.toLocaleString('zh-CN', {timeZone: 'Asia/Shanghai'}));
+    console.log('[定时任务] 开始检查即将到期的订阅 UTC: ' + now.toISOString() + ', 北京时间: ' + beijingTime.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }));
 
     const subscriptions = await getAllSubscriptions(env);
     console.log('[定时任务] 共找到 ' + subscriptions.length + ' 个订阅');
@@ -3391,129 +3432,129 @@ async function checkExpiringSubscriptions(env) {
     const updatedSubscriptions = [];
     let hasUpdates = false;
 
-for (const subscription of subscriptions) {
-  if (subscription.isActive === false) {
-    console.log('[定时任务] 订阅 "' + subscription.name + '" 已停用，跳过');
-    continue;
-  }
+    for (const subscription of subscriptions) {
+      if (subscription.isActive === false) {
+        console.log('[定时任务] 订阅 "' + subscription.name + '" 已停用，跳过');
+        continue;
+      }
 
-  let daysDiff;
-  if (subscription.useLunar) {
-    const expiryDate = new Date(subscription.expiryDate);
-    let lunar = lunarCalendar.solar2lunar(
-      expiryDate.getFullYear(),
-      expiryDate.getMonth() + 1,
-      expiryDate.getDate()
-    );
-    daysDiff = lunarBiz.daysToLunar(lunar);
+      let daysDiff;
+      if (subscription.useLunar) {
+        const expiryDate = new Date(subscription.expiryDate);
+        let lunar = lunarCalendar.solar2lunar(
+          expiryDate.getFullYear(),
+          expiryDate.getMonth() + 1,
+          expiryDate.getDate()
+        );
+        daysDiff = lunarBiz.daysToLunar(lunar);
 
-    console.log('[定时任务] 订阅 "' + subscription.name + '" 到期日期: ' + expiryDate.toISOString() + ', 剩余天数: ' + daysDiff);
+        console.log('[定时任务] 订阅 "' + subscription.name + '" 到期日期: ' + expiryDate.toISOString() + ', 剩余天数: ' + daysDiff);
 
-    if (daysDiff < 0 && subscription.periodValue && subscription.periodUnit && subscription.autoRenew !== false) {
-      let nextLunar = lunar;
-      do {
-        nextLunar = lunarBiz.addLunarPeriod(nextLunar, subscription.periodValue, subscription.periodUnit);
-        const solar = lunarBiz.lunar2solar(nextLunar);
-        var newExpiryDate = new Date(solar.year, solar.month - 1, solar.day);
-        daysDiff = lunarBiz.daysToLunar(nextLunar);
-        console.log('[定时任务] 订阅 "' + subscription.name + '" 更新到期日期: ' + newExpiryDate.toISOString() + ', 剩余天数: ' + daysDiff);
-      } while (daysDiff < 0);
+        if (daysDiff < 0 && subscription.periodValue && subscription.periodUnit && subscription.autoRenew !== false) {
+          let nextLunar = lunar;
+          do {
+            nextLunar = lunarBiz.addLunarPeriod(nextLunar, subscription.periodValue, subscription.periodUnit);
+            const solar = lunarBiz.lunar2solar(nextLunar);
+            var newExpiryDate = new Date(solar.year, solar.month - 1, solar.day);
+            daysDiff = lunarBiz.daysToLunar(nextLunar);
+            console.log('[定时任务] 订阅 "' + subscription.name + '" 更新到期日期: ' + newExpiryDate.toISOString() + ', 剩余天数: ' + daysDiff);
+          } while (daysDiff < 0);
 
-      const updatedSubscription = { ...subscription, expiryDate: newExpiryDate.toISOString() };
-      updatedSubscriptions.push(updatedSubscription);
-      hasUpdates = true;
+          const updatedSubscription = { ...subscription, expiryDate: newExpiryDate.toISOString() };
+          updatedSubscriptions.push(updatedSubscription);
+          hasUpdates = true;
 
-      let reminderDays = subscription.reminderDays !== undefined ? subscription.reminderDays : 7;
-      let shouldRemindAfterRenewal = false;
-      if (reminderDays === 0) {
-        shouldRemindAfterRenewal = daysDiff === 0;
+          let reminderDays = subscription.reminderDays !== undefined ? subscription.reminderDays : 7;
+          let shouldRemindAfterRenewal = false;
+          if (reminderDays === 0) {
+            shouldRemindAfterRenewal = daysDiff === 0;
+          } else {
+            shouldRemindAfterRenewal = daysDiff >= 0 && daysDiff <= reminderDays;
+          }
+          if (shouldRemindAfterRenewal) {
+            console.log('[定时任务] 订阅 "' + subscription.name + '" 在提醒范围内，将发送通知');
+            expiringSubscriptions.push({
+              ...updatedSubscription,
+              daysRemaining: daysDiff
+            });
+          }
+          continue;
+        }
       } else {
-        shouldRemindAfterRenewal = daysDiff >= 0 && daysDiff <= reminderDays;
-      }
-      if (shouldRemindAfterRenewal) {
-        console.log('[定时任务] 订阅 "' + subscription.name + '" 在提醒范围内，将发送通知');
-        expiringSubscriptions.push({
-          ...updatedSubscription,
-          daysRemaining: daysDiff
-        });
-      }
-      continue;
-    }
-  } else {
-    const expiryDate = new Date(subscription.expiryDate);
-    daysDiff = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+        const expiryDate = new Date(subscription.expiryDate);
+        daysDiff = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
 
-    console.log('[定时任务] 订阅 "' + subscription.name + '" 到期日期: ' + expiryDate.toISOString() + ', 剩余天数: ' + daysDiff);
+        console.log('[定时任务] 订阅 "' + subscription.name + '" 到期日期: ' + expiryDate.toISOString() + ', 剩余天数: ' + daysDiff);
 
-    if (daysDiff < 0 && subscription.periodValue && subscription.periodUnit && subscription.autoRenew !== false) {
-      const newExpiryDate = new Date(expiryDate);
+        if (daysDiff < 0 && subscription.periodValue && subscription.periodUnit && subscription.autoRenew !== false) {
+          const newExpiryDate = new Date(expiryDate);
 
-      if (subscription.periodUnit === 'day') {
-        newExpiryDate.setDate(expiryDate.getDate() + subscription.periodValue);
-      } else if (subscription.periodUnit === 'month') {
-        newExpiryDate.setMonth(expiryDate.getMonth() + subscription.periodValue);
-      } else if (subscription.periodUnit === 'year') {
-        newExpiryDate.setFullYear(expiryDate.getFullYear() + subscription.periodValue);
-      }
+          if (subscription.periodUnit === 'day') {
+            newExpiryDate.setDate(expiryDate.getDate() + subscription.periodValue);
+          } else if (subscription.periodUnit === 'month') {
+            newExpiryDate.setMonth(expiryDate.getMonth() + subscription.periodValue);
+          } else if (subscription.periodUnit === 'year') {
+            newExpiryDate.setFullYear(expiryDate.getFullYear() + subscription.periodValue);
+          }
 
-      while (newExpiryDate < now) {
-        console.log('[定时任务] 新计算的到期日期 ' + newExpiryDate.toISOString() + ' 仍然过期，继续计算下一个周期');
-        if (subscription.periodUnit === 'day') {
-          newExpiryDate.setDate(newExpiryDate.getDate() + subscription.periodValue);
-        } else if (subscription.periodUnit === 'month') {
-          newExpiryDate.setMonth(newExpiryDate.getMonth() + subscription.periodValue);
-        } else if (subscription.periodUnit === 'year') {
-          newExpiryDate.setFullYear(newExpiryDate.getFullYear() + subscription.periodValue);
+          while (newExpiryDate < now) {
+            console.log('[定时任务] 新计算的到期日期 ' + newExpiryDate.toISOString() + ' 仍然过期，继续计算下一个周期');
+            if (subscription.periodUnit === 'day') {
+              newExpiryDate.setDate(newExpiryDate.getDate() + subscription.periodValue);
+            } else if (subscription.periodUnit === 'month') {
+              newExpiryDate.setMonth(newExpiryDate.getMonth() + subscription.periodValue);
+            } else if (subscription.periodUnit === 'year') {
+              newExpiryDate.setFullYear(newExpiryDate.getFullYear() + subscription.periodValue);
+            }
+          }
+
+          console.log('[定时任务] 订阅 "' + subscription.name + '" 更新到期日期: ' + newExpiryDate.toISOString());
+
+          const updatedSubscription = { ...subscription, expiryDate: newExpiryDate.toISOString() };
+          updatedSubscriptions.push(updatedSubscription);
+          hasUpdates = true;
+
+          const newDaysDiff = Math.ceil((newExpiryDate - now) / (1000 * 60 * 60 * 24));
+          let reminderDays = subscription.reminderDays !== undefined ? subscription.reminderDays : 7;
+          let shouldRemindAfterRenewal = false;
+          if (reminderDays === 0) {
+            shouldRemindAfterRenewal = newDaysDiff === 0;
+          } else {
+            shouldRemindAfterRenewal = newDaysDiff >= 0 && newDaysDiff <= reminderDays;
+          }
+          if (shouldRemindAfterRenewal) {
+            console.log('[定时任务] 订阅 "' + subscription.name + '" 在提醒范围内，将发送通知');
+            expiringSubscriptions.push({
+              ...updatedSubscription,
+              daysRemaining: newDaysDiff
+            });
+          }
+          continue;
         }
       }
 
-      console.log('[定时任务] 订阅 "' + subscription.name + '" 更新到期日期: ' + newExpiryDate.toISOString());
-
-      const updatedSubscription = { ...subscription, expiryDate: newExpiryDate.toISOString() };
-      updatedSubscriptions.push(updatedSubscription);
-      hasUpdates = true;
-
-      const newDaysDiff = Math.ceil((newExpiryDate - now) / (1000 * 60 * 60 * 24));
-      let reminderDays = subscription.reminderDays !== undefined ? subscription.reminderDays : 7;
-      let shouldRemindAfterRenewal = false;
+      const reminderDays = subscription.reminderDays !== undefined ? subscription.reminderDays : 7;
+      let shouldRemind = false;
       if (reminderDays === 0) {
-        shouldRemindAfterRenewal = newDaysDiff === 0;
+        shouldRemind = daysDiff === 0;
       } else {
-        shouldRemindAfterRenewal = newDaysDiff >= 0 && newDaysDiff <= reminderDays;
+        shouldRemind = daysDiff >= 0 && daysDiff <= reminderDays;
       }
-      if (shouldRemindAfterRenewal) {
+
+      if (daysDiff < 0 && subscription.autoRenew === false) {
+        console.log('[定时任务] 订阅 "' + subscription.name + '" 已过期且未启用自动续订，将发送过期通知');
+        expiringSubscriptions.push({
+          ...subscription,
+          daysRemaining: daysDiff
+        });
+      } else if (shouldRemind) {
         console.log('[定时任务] 订阅 "' + subscription.name + '" 在提醒范围内，将发送通知');
         expiringSubscriptions.push({
-          ...updatedSubscription,
-          daysRemaining: newDaysDiff
+          ...subscription,
+          daysRemaining: daysDiff
         });
       }
-      continue;
     }
-  }
-
-  const reminderDays = subscription.reminderDays !== undefined ? subscription.reminderDays : 7;
-  let shouldRemind = false;
-  if (reminderDays === 0) {
-    shouldRemind = daysDiff === 0;
-  } else {
-    shouldRemind = daysDiff >= 0 && daysDiff <= reminderDays;
-  }
-
-  if (daysDiff < 0 && subscription.autoRenew === false) {
-    console.log('[定时任务] 订阅 "' + subscription.name + '" 已过期且未启用自动续订，将发送过期通知');
-    expiringSubscriptions.push({
-      ...subscription,
-      daysRemaining: daysDiff
-    });
-  } else if (shouldRemind) {
-    console.log('[定时任务] 订阅 "' + subscription.name + '" 在提醒范围内，将发送通知');
-    expiringSubscriptions.push({
-      ...subscription,
-      daysRemaining: daysDiff
-    });
-  }
-}
 
     if (hasUpdates) {
       const mergedSubscriptions = subscriptions.map(sub => {
@@ -3529,9 +3570,10 @@ for (const subscription of subscriptions) {
 
       const showLunar = config.SHOW_LUNAR === true;
 
+      let subs = []
       for (const sub of expiringSubscriptions) {
         const typeText = sub.customType || '其他';
-        const periodText = (sub.periodValue && sub.periodUnit) ? `(周期: ${sub.periodValue} ${ { day: '天', month: '月', year: '年' }[sub.periodUnit] || sub.periodUnit})` : '';
+        const periodText = (sub.periodValue && sub.periodUnit) ? `(周期: ${sub.periodValue} ${{ day: '天', month: '月', year: '年' }[sub.periodUnit] || sub.periodUnit})` : '';
 
         let lunarExpiryText = '';
         if (showLunar) {
@@ -3547,7 +3589,14 @@ for (const subscription of subscriptions) {
 
         if (sub.notes) statusText += `\n   备注: ${sub.notes}`;
         commonContent += statusText + '\n\n';
+
+        subs.push({
+          name: sub.name,
+          actions: sub.actions
+        })
       }
+
+      executeActions(subs)
 
       const title = '订阅到期提醒';
       await sendNotificationToAllChannels(title, commonContent, config, '[定时任务]');
@@ -3571,7 +3620,7 @@ async function handleRequest(request, env, ctx) {
 }
 
 const CryptoJS = {
-  HmacSHA256: function(message, key) {
+  HmacSHA256: function (message, key) {
     const keyData = new TextEncoder().encode(key);
     const messageData = new TextEncoder().encode(message);
 
@@ -3579,7 +3628,7 @@ const CryptoJS = {
       return crypto.subtle.importKey(
         "raw",
         keyData,
-        { name: "HMAC", hash: {name: "SHA-256"} },
+        { name: "HMAC", hash: { name: "SHA-256" } },
         false,
         ["sign"]
       );
@@ -3672,7 +3721,7 @@ export default {
   async scheduled(event, env, ctx) {
     const now = new Date();
     const beijingTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
-    console.log('[Workers] 定时任务触发 UTC:', now.toISOString(), '北京时间:', beijingTime.toLocaleString('zh-CN', {timeZone: 'Asia/Shanghai'}));
+    console.log('[Workers] 定时任务触发 UTC:', now.toISOString(), '北京时间:', beijingTime.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }));
     await checkExpiringSubscriptions(env);
   }
 };
