@@ -3204,12 +3204,15 @@ async function sendWechatBotNotification(title, content, config) {
   }
 }
 
-function executeActions(subscriptions) {
+function executeActions(subscriptions, config) {
   subscriptions.forEach((sub) => {
     let name = sub.name
     let actions = JSON.parse(sub.actions)
-    
-    doAction(actions, name)
+    try {
+      doAction(actions, name, '')
+    } catch (err) {
+      sendNotificationToAllChannels('操作执行异常', err.message, config, '操作执行异常')
+    }
   });
 }
 
@@ -3221,6 +3224,7 @@ function doAction(actions, name) {
       .then(response => {
         if (!response.success) {
           console.log(`${name}操作${action.url}执行失败: ${response.message}`);
+          throw Error(`${name}操作${action.url}执行失败: ${response.message}\n`)
         } else {
           console.log(`${name}操作${action.url}执行成功`);
           if (action.callback) {
