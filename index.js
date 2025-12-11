@@ -3041,8 +3041,6 @@ async function testSingleSubscriptionNotification(id, env) {
 
     const commonContent = `**订阅详情**:\n- **类型**: ${subscription.customType || '其他'}\n- **到期日**: ${formatBeijingTime(new Date(subscription.expiryDate), 'date')}${lunarExpiryText}\n- **备注**: ${subscription.notes || '无'}`;
 
-    console.log(subscription);
-    
     executeActions([{
       name: subscription.name,
       actions: subscription.actions
@@ -3210,6 +3208,8 @@ function executeActions(subscriptions) {
   subscriptions.forEach((sub) => {
     let name = sub.name
     let actions = sub.actions
+    console.log(sub);
+    
     doAction(actions, name)
   });
 }
