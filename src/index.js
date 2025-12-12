@@ -5151,9 +5151,9 @@ async function doAction(actions, name) {
       let errors = responseData.errors;
       if (errors) {
         const errorDetail = errors[0]?.detail || '未知业务错误';
-        const errorMessage = `**操作详情**
-名称: ${name}
-链接：${action.url}
+        const errorMessage = `**操作详情**\n
+名称: ${name}\n
+链接：${action.url}\n
 报错信息: ${errorDetail}`;
         throw new Error(errorMessage);
       } else {
