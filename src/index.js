@@ -4892,7 +4892,8 @@ async function testSingleSubscriptionNotification(id, env) {
 
     let success = await executeActions([{
       name: subscription.name,
-      actions: subscription.actions
+      actions: subscription.actions,
+      notes: subscription.notes
     }], config)
     if (!success) {
       // 使用多渠道发送
