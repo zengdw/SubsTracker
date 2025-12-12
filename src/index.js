@@ -5120,16 +5120,15 @@ async function executeActions(subscriptions, config) {
     try {
       // !!! 关键改动：使用 await 等待所有操作完成
       await doAction(actions, name);
-      await sendNotificationToAllChannels('操作执行成功', name, config, '操作执行成功');
-      return true
+      await sendNotificationToAllChannels('操作执行成功', `名称: ${name}`, config, '操作执行成功');
     } catch (err) {
       // doAction 中抛出的任何错误（包括 fetch 失败和业务逻辑错误）都会被这里捕获
       console.error(`订阅 ${name} 执行异常:`, err);
       // 确保 err.message 是可用的，因为我们抛出的是 Error 对象
       await sendNotificationToAllChannels('操作执行异常', err.message, config, '操作执行异常');
-      return false
     }
   }
+  return subscriptions.length > 0
 }
 
 /**
@@ -5152,8 +5151,10 @@ async function doAction(actions, name) {
       let errors = responseData.errors;
       if (errors) {
         const errorDetail = errors[0]?.detail || '未知业务错误';
-        const errorMessage = `${name}操作${action.url} 执行失败: ${errorDetail}`;
-        // 抛出错误，会被外层 try...catch 捕获（即 executeActions 中的 catch）
+        const errorMessage = `**操作详情**
+名称: ${name}
+链接：${action.url}
+报错信息: ${errorDetail}`;
         throw new Error(errorMessage);
       } else {
         console.log(`${name}操作${action.url} 执行成功`);
@@ -5166,8 +5167,6 @@ async function doAction(actions, name) {
         }
       }
     } catch (err) {
-      // 在 doAction 内部，我们不处理错误（即不 console.error(err)），而是将其向上抛出。
-      // 这样 executeActions 就能捕获到错误，并发送通知。
       throw err;
     }
   }
