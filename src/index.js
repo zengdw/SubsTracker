@@ -5117,9 +5117,8 @@ async function executeActions(subscriptions, config) {
 
   for (const sub of subscriptions) {
     let name = sub.name;
-    console.log(sub);
+    let actions = JSON.parse(sub.actions || '[]');
 
-    let actions = JSON.parse(sub.actions || []);
     if (actions.length > 0) {
       try {
         // !!! 关键改动：使用 await 等待所有操作完成
