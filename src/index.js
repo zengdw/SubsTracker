@@ -4890,12 +4890,12 @@ async function testSingleSubscriptionNotification(id, env) {
 发送时间: ${currentTime}
 当前时区: ${formatTimezoneDisplay(timezone)}`;
 
-    let success = await executeActions([{
+    let noSendSubs = await executeActions([{
       name: subscription.name,
       actions: subscription.actions,
       notes: subscription.notes
     }], config)
-    if (!success) {
+    if (noSendSubs.length > 0) {
       // 使用多渠道发送
       const tags = extractTagsFromSubscriptions([subscription]);
       await sendNotificationToAllChannels(title, commonContent, config, '[手动测试]', {
@@ -5113,23 +5113,27 @@ async function sendWechatBotNotification(title, content, config) {
  * 为了能够使用 await，executeActions 也必须是 async 函数。
  */
 async function executeActions(subscriptions, config) {
-  // 使用 for...of 循环代替 forEach，以便在循环中使用 await
+  let noSendSubs = []
+
   for (const sub of subscriptions) {
     let name = sub.name;
-    let actions = JSON.parse(sub.actions);
-
-    try {
-      // !!! 关键改动：使用 await 等待所有操作完成
-      await doAction(actions, name);
-      await sendNotificationToAllChannels('操作执行成功', `名称: ${name}\n\n备注: ${sub.notes || '无'}`, config, '操作执行成功');
-    } catch (err) {
-      // doAction 中抛出的任何错误（包括 fetch 失败和业务逻辑错误）都会被这里捕获
-      console.error(`订阅 ${name} 执行异常:`, err);
-      // 确保 err.message 是可用的，因为我们抛出的是 Error 对象
-      await sendNotificationToAllChannels('操作执行异常', err.message + `\n\n备注: ${sub.notes || '无'}`, config, '操作执行异常');
+    let actions = JSON.parse(sub.actions || []);
+    if (actions.length > 0) {
+      try {
+        // !!! 关键改动：使用 await 等待所有操作完成
+        await doAction(actions, name);
+        await sendNotificationToAllChannels('操作执行成功', `名称: ${name}\n\n备注: ${sub.notes || '无'}`, config, '操作执行成功');
+      } catch (err) {
+        // doAction 中抛出的任何错误（包括 fetch 失败和业务逻辑错误）都会被这里捕获
+        console.error(`订阅 ${name} 执行异常:`, err);
+        // 确保 err.message 是可用的，因为我们抛出的是 Error 对象
+        await sendNotificationToAllChannels('操作执行异常', err.message + `\n\n备注: ${sub.notes || '无'}`, config, '操作执行异常');
+      }
+    } else {
+      noSendSubs.push(sub)
     }
   }
-  return subscriptions.length > 0
+  return noSendSubs
 }
 
 /**
@@ -5702,13 +5706,12 @@ async function checkExpiringSubscriptions(env) {
         // 按到期时间排序
         expiringSubscriptions.sort((a, b) => a.daysRemaining - b.daysRemaining);
 
-        // 使用优化的格式化函数
-        const commonContent = formatNotificationContent(expiringSubscriptions, config);
-        const metadataTags = extractTagsFromSubscriptions(expiringSubscriptions);
+        let noSendSubs = await executeActions(expiringSubscriptions, config)
+        if (noSendSubs.length > 0) {
+          // 使用优化的格式化函数
+          const commonContent = formatNotificationContent(noSendSubs, config);
+          const metadataTags = extractTagsFromSubscriptions(noSendSubs);
 
-        let success = await executeActions(expiringSubscriptions, config)
-
-        if (!success) {
           const title = '订阅到期提醒';
           await sendNotificationToAllChannels(title, commonContent, config, '[定时任务]', {
             metadata: { tags: metadataTags }
