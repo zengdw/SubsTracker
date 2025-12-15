@@ -5117,6 +5117,8 @@ async function executeActions(subscriptions, config) {
 
   for (const sub of subscriptions) {
     let name = sub.name;
+    console.log(sub);
+
     let actions = JSON.parse(sub.actions || []);
     if (actions.length > 0) {
       try {
